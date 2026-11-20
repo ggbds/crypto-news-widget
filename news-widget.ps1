@@ -12,7 +12,7 @@ $TranslateEnglish = $true   # 英文標題自動翻譯成繁體中文
 $MaxAlertsPerRefresh = 3    # 每次更新最多通知幾則突發新聞
 
 # 版本與自動更新：發布新版時把 AppVersion 改大，再到 GitHub 建立同版號的 Release（附上安裝檔）
-$AppVersion   = '1.1.0'
+$AppVersion   = '1.1.1'
 $UpdateRepo   = 'ggbds/crypto-news-widget'                    # GitHub 上的「帳號/儲存庫」
 $UpdateAsset  = 'CryptoNewsWidget-Setup.exe'          # Release 裡安裝檔的檔名
 
@@ -776,6 +776,13 @@ $ImpactRules = @(
     # --- 資安 / 信用風險 ---
     ,@('駭客|黑客|被駭|遭駭|被盜|遭盜|盜走|漏洞|遭攻擊|被攻擊|攻擊事件|exploit|hacked', -1, '資安事件')
     ,@('破產|倒閉|擠兌|違約|脫鉤|資不抵債', -1, '信用/流動性風險')
+    # --- 合約多空部位（要放在「爆倉」和「加倉/買入」前面，例如「加倉3090萬美元空單」是做空不是買進）---
+    ,@('(空單|空頭|空方|做空者).{0,6}(爆倉|清算|被清算|止損)|軋空|逼空', 1, '空頭被清算（軋空）')
+    ,@('(多單|多頭|多方|做多者).{0,6}(爆倉|清算|被清算|止損)', -1, '多頭被清算')
+    ,@('平空|空單.{0,4}(平倉|回補)|回補空單', 1, '空單回補')
+    ,@('平多|多單.{0,4}(平倉|減倉)', -1, '多單平倉')
+    ,@('(加倉|加碼|建倉|增持|新增|開設)[^，。；]{0,20}空單|空單|開空|做空|加空|空頭部位|空頭倉位|看空|押注.{0,6}下跌', -1, '大戶/資金做空')
+    ,@('(加倉|加碼|建倉|增持|新增|開設)[^，。；]{0,20}多單|多單|開多|做多|加多|多頭部位|多頭倉位|看多|押注.{0,6}上漲', 1, '大戶/資金做多')
     ,@('爆倉|清算潮|多頭清算|大量清算', -1, '大量清算')
     ,@('政府停擺|關門危機', -1, '政府停擺')
     # --- 買賣力道 ---
@@ -1089,11 +1096,11 @@ function Render-List {
 }
 
 function Render-Status {
-    $parts = @()
+    $parts = @("v$AppVersion")
     if ($script:Job) { $parts += '更新中…' }
     elseif ($script:LastOk) { $parts += ('更新於 ' + $script:LastOk.ToString('HH:mm:ss') + (' · {0}s 後更新' -f $script:Countdown)) }
     if ($script:LastErr.Count) { $parts += ('無法連線：' + ($script:LastErr -join '、')) }
-    $ui.Status.Text = $parts -join '   '
+    $ui.Status.Text = $parts -join '  ·  '
 }
 
 # ------------------------- 更新流程 -------------------------
@@ -1275,7 +1282,10 @@ function Show-SymbolDialog {
 
       <Grid x:Name="DlgHeader" Background="Transparent">
         <StackPanel>
-          <TextBlock Text="設定" FontSize="$fsH" FontWeight="SemiBold" Foreground="$($T.Title)"/>
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Text="版本 v$AppVersion" Foreground="$($T.Time)" VerticalAlignment="Center"/>
+            <TextBlock Text="設定" FontSize="$fsH" FontWeight="SemiBold" Foreground="$($T.Title)"/>
+          </DockPanel>
           <TextBlock Text="外觀、通知，以及要顯示在行情列的幣與美股（按「儲存」才會套用）" Foreground="$($T.Time)" Margin="0,2,0,0" TextWrapping="Wrap"/>
         </StackPanel>
       </Grid>
